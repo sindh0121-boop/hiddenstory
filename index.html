@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>숨겨진 이야기에 대하여</title>
+<link rel="preload" as="font" type="font/woff" crossorigin="anonymous" href="https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10@1.0/ROEHOE-CHAN.woff">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&amp;family=Nanum+Myeongjo:wght@400;700;800&amp;family=Noto+Sans+KR:wght@400;500;700&amp;family=Nanum+Gothic+Coding:wght@400;700&amp;display=swap">
+<style>
+@font-face{font-family:'NohHaeChan';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10@1.0/ROEHOE-CHAN.woff') format('woff');font-weight:normal;font-display:block}
+html,body{margin:0;background:#000;color:#f2efe9;overflow-x:clip;-webkit-font-smoothing:antialiased;color-scheme:dark}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,a:focus-visible{outline:1px solid #f2efe9;outline-offset:4px}
+a{color:#f2efe9;text-decoration:none}
+a:hover{color:#f2efe9}
+</style>
+</helmet>
+<div style="font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;background:#000;color:#f2efe9">
+
+<div id="progress" style="position:fixed;left:0;top:0;width:1px;height:0;background:#f2efe9;opacity:.4;z-index:50;pointer-events:none"></div>
+<button id="gear" aria-label="설정" aria-expanded="false" style="position:fixed;right:18px;top:18px;width:28px;height:28px;z-index:60;opacity:.35;transition:opacity 200ms cubic-bezier(.4,0,.2,1)" style-hover="opacity:.9">
+  <svg id="gear-svg" viewBox="0 0 24 24" aria-hidden="true" style="display:block;width:100%;height:100%;stroke:#f2efe9;fill:none;stroke-width:1.2"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"></path></svg>
+</button>
+<div id="panel" style="display:none;position:fixed;right:18px;top:56px;z-index:60;background:#000;border:1px solid rgba(242,239,233,.25);padding:8px 4px;min-width:160px;transform-origin:top right">
+  <button id="b-caps" style="display:flex;justify-content:space-between;gap:24px;width:100%;text-align:left;padding:9px 14px;font-size:14px;transition:background-color 100ms" style-hover="background-color:rgba(242,239,233,.08)">자막<span class="st" style="color:#9a958c;font-size:12px">켬</span></button>
+  <button id="b-auto" style="display:flex;justify-content:space-between;gap:24px;width:100%;text-align:left;padding:9px 14px;font-size:14px;transition:background-color 100ms" style-hover="background-color:rgba(242,239,233,.08)">자동 진행<span class="st" style="color:#9a958c;font-size:12px">끔</span></button>
+  <button id="b-top" style="display:flex;width:100%;text-align:left;padding:9px 14px;font-size:14px;transition:background-color 100ms" style-hover="background-color:rgba(242,239,233,.08)">처음으로</button>
+  <button id="b-edit" style="display:flex;justify-content:space-between;gap:24px;width:100%;text-align:left;padding:9px 14px;font-size:14px;transition:background-color 100ms" style-hover="background-color:rgba(242,239,233,.08)">배치 편집<span class="st" style="font-size:12px;opacity:.6">끔</span></button>
+</div>
+<button id="skip" style="display:none;position:fixed;right:18px;bottom:18px;z-index:55;font-size:13px;letter-spacing:.04em;opacity:0;transform:translateX(6px);pointer-events:none">건너뛰기 ›</button>
+
+<section id="title" data-screen-label="00 타이틀" style="position:relative;z-index:2;height:100vh;overflow:clip;background:#000">
+ <div id="title-sticky" style="position:sticky;top:0;height:100vh;overflow:hidden">
+  <div id="title-par" style="position:absolute;inset:0;will-change:transform">
+    <video id="intro-video" src="https://res.cloudinary.com/webingvr/video/upload/v1790990871/intro.mp4#t=0.1" preload="auto" playsinline="" crossorigin="anonymous" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;background:#000"></video>
+    <div id="intro-sketch" style="position:absolute;inset:0;background:#f2efe9 center/cover no-repeat;opacity:0;pointer-events:none"></div>
+    <canvas id="intro-erase" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
+  </div>
+  <div id="cover-wrap" style="position:absolute;inset:0;z-index:5;perspective:2200px;pointer-events:none">
+    <div id="cover" style="position:absolute;inset:0;background:#e8e6e2;overflow:hidden;will-change:opacity,transform">
+      <div id="cv-sea" aria-hidden="true" style="position:absolute;inset:-6%;background:#e8e6e2 center/cover no-repeat;opacity:0;will-change:transform,opacity"></div>
+      <div id="cv-fog1" aria-hidden="true" style="position:absolute;left:-30%;right:-30%;top:10%;height:50%;background:radial-gradient(ellipse 45% 50% at 30% 50%,rgba(255,255,255,.55),rgba(255,255,255,0) 70%),radial-gradient(ellipse 35% 40% at 75% 60%,rgba(255,255,255,.4),rgba(255,255,255,0) 70%);filter:blur(22px);will-change:transform"></div>
+      <div id="cv-fog2" aria-hidden="true" style="position:absolute;left:-30%;right:-30%;top:55%;height:40%;background:radial-gradient(ellipse 40% 45% at 60% 40%,rgba(255,255,255,.35),rgba(255,255,255,0) 70%);filter:blur(28px);will-change:transform"></div>
+      <div id="cv-vig" aria-hidden="true" style="position:absolute;inset:0;background:radial-gradient(ellipse 85% 75% at 50% 40%,rgba(0,0,0,0) 50%,rgba(0,0,0,.28) 100%)"></div>
+      <canvas id="cv-grain" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;opacity:.1;mix-blend-mode:multiply;pointer-events:none"></canvas>
+      <h1 id="cover-title" style="visibility:hidden;position:absolute;left:0;right:0;top:14%;margin:0;padding:0 4vw;text-align:center;white-space:nowrap;font-family:'NohHaeChan','Nanum Myeongjo',serif;font-weight:400;font-size:clamp(22px,4.4vw,68px);-webkit-text-stroke:.035em #141210;paint-order:stroke fill;line-height:1.18;letter-spacing:-.02em;color:#141210;text-wrap:balance;will-change:transform">숨겨진 이야기에 대하여</h1>
+    </div>
+  </div>
+  <div id="intro-write" aria-hidden="true" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8vw;z-index:5;text-align:center;font-family:'Nanum Gothic Coding','Courier New',monospace;font-weight:700;font-size:clamp(40px,6.4vw,92px);line-height:1.25;letter-spacing:.04em;text-shadow:0 0 1px rgba(242,239,233,.55),.6px .4px 0 rgba(242,239,233,.18);color:#1d1a17;opacity:0;pointer-events:none"></div>
+  <div id="intro-ctl" style="position:absolute;left:0;right:0;bottom:0;z-index:7;padding:0 18px 18px;display:flex;justify-content:space-between;align-items:flex-end;opacity:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.55));height:120px;box-sizing:border-box">
+    <span></span>
+    <button id="intro-skip" style="font-size:13px;letter-spacing:.04em;opacity:.7;transition:opacity 100ms,transform 120ms cubic-bezier(.4,0,.2,1)" style-hover="opacity:1" style-active="transform:scale(.95)">건너뛰기 ›</button>
+    <div style="position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(242,239,233,.15)">
+      <div id="intro-bar" style="height:100%;background:#f2efe9;opacity:.7;transform:scaleX(0);transform-origin:left"></div>
+    </div>
+  </div>
+  <div id="title-inner" style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:48vh 6vw 0;gap:18px;z-index:6;color:#f2efe9;text-align:center;opacity:0;will-change:transform,opacity">
+    <div id="title-row" style="display:flex;flex-direction:column;align-items:center;gap:16px;font-size:15px">
+      <button id="start" aria-hidden="true" tabindex="-1" style="display:none;position:relative;flex-direction:column;align-items:center;gap:8px;padding:8px 6px 4px;color:#f2efe9;transition:transform 120ms cubic-bezier(.4,0,.2,1)" style-active="transform:scale(.96)">
+        <span id="start-ink" style="font-family:'Nanum Myeongjo','Apple Myungjo',serif;font-weight:700;font-size:17px;letter-spacing:.32em;padding-left:.32em;transition:letter-spacing 600ms cubic-bezier(.4,0,.2,1),opacity 400ms">시작하기</span>
+        <span id="start-dots" aria-hidden="true" style="display:block;height:1px;width:28px;background:#f2efe9;opacity:.7;transition:width 600ms cubic-bezier(.4,0,.2,1),opacity 400ms"></span>
+      </button>
+    </div>
+  </div>
+ </div>
+</section>
+
+<section id="p2" data-part="" data-screen-label="2부 타이틀" style="position:relative;z-index:2;height:200vh;background:#f2efe9;color:#141210">
+  <div style="position:sticky;top:0;height:100vh;display:grid;place-items:center;overflow:hidden;background:#f2efe9">
+    <div style="display:grid;gap:18px;justify-items:center;text-align:center;padding:0 8vw">
+      <span data-part-no="" data-depth=".7" style="will-change:transform;font-size:14px;letter-spacing:.3em;color:#4a463f;min-height:1.4em">CHAPTER 1</span>
+      <h2 data-part-title="" data-depth=".28" style="will-change:transform;margin:0;font-family:'Nanum Gothic Coding','Courier New',monospace;font-weight:700;font-size:clamp(40px,6.4vw,92px);line-height:1.25;letter-spacing:.04em">해 지기 전에</h2>
+    </div>
+  </div>
+</section>
+<section id="v2" data-video-slot="2" data-screen-label="2부 영상" style="position:relative;z-index:2;height:100vh;background:#000;display:grid;place-items:center;box-shadow:0 -24px 48px rgba(0,0,0,.35)">
+  <div data-depth=".12" style="position:absolute;inset:24px;border:1px dashed rgba(242,239,233,.22)"></div>
+  <span data-depth=".5" style="font-size:13px;letter-spacing:.2em;color:#9a958c">1부 영상 자리</span>
+</section>
+
+<section id="p3" data-part="" data-screen-label="3부 타이틀" style="position:relative;z-index:2;height:200vh;background:#0b0a09;color:#f2efe9;box-shadow:0 -24px 48px rgba(0,0,0,.45)">
+  <div style="position:sticky;top:0;height:100vh;display:grid;place-items:center;overflow:hidden;background:#0b0a09">
+    <div style="display:grid;gap:18px;justify-items:center;text-align:center;padding:0 8vw">
+      <span data-part-no="" data-depth=".7" style="will-change:transform;font-size:14px;letter-spacing:.3em;color:#bdb8ae;min-height:1.4em">CHAPTER 2</span>
+      <h2 data-part-title="" data-depth=".28" style="will-change:transform;margin:0;font-family:'Nanum Gothic Coding','Courier New',monospace;font-weight:700;font-size:clamp(40px,6.4vw,92px);line-height:1.25;letter-spacing:.04em;text-shadow:0 0 1px rgba(242,239,233,.55),.6px .4px 0 rgba(242,239,233,.18)">말을 트다</h2>
+    </div>
+  </div>
+</section>
+<section id="v3" data-video-slot="3" data-screen-label="3부 영상" style="position:relative;z-index:2;height:100vh;background:#000;display:grid;place-items:center;box-shadow:0 -24px 48px rgba(0,0,0,.35)">
+  <div data-depth=".12" style="position:absolute;inset:24px;border:1px dashed rgba(242,239,233,.22)"></div>
+  <span data-depth=".5" style="font-size:13px;letter-spacing:.2em;color:#9a958c">2부 영상 자리</span>
+</section>
+
+<section id="p4" data-part="" data-screen-label="4부 타이틀" style="position:relative;z-index:2;height:200vh;background:#0b0a09;color:#f2efe9;box-shadow:0 -24px 48px rgba(0,0,0,.45)">
+  <div style="position:sticky;top:0;height:100vh;display:grid;place-items:center;overflow:hidden;background:#0b0a09">
+    <div style="display:grid;gap:18px;justify-items:center;text-align:center;padding:0 8vw">
+      <span data-part-no="" data-depth=".7" style="will-change:transform;font-size:14px;letter-spacing:.3em;color:#bdb8ae;min-height:1.4em">CHAPTER 3</span>
+      <h2 data-part-title="" data-depth=".28" style="will-change:transform;margin:0;font-family:'Nanum Gothic Coding','Courier New',monospace;font-weight:700;font-size:clamp(40px,6.4vw,92px);line-height:1.25;letter-spacing:.04em;text-shadow:0 0 1px rgba(242,239,233,.55),.6px .4px 0 rgba(242,239,233,.18)">어깨를 나누던 마음</h2>
+    </div>
+  </div>
+</section>
+<section id="v4" data-video-slot="4" data-screen-label="4부 영상" style="position:relative;z-index:2;height:100vh;background:#000;display:grid;place-items:center;box-shadow:0 -24px 48px rgba(0,0,0,.35)">
+  <div data-depth=".12" style="position:absolute;inset:24px;border:1px dashed rgba(242,239,233,.22)"></div>
+  <span data-depth=".5" style="font-size:13px;letter-spacing:.2em;color:#9a958c">3부 영상 자리</span>
+</section>
+
+<section id="p5" data-part="" data-screen-label="5부 타이틀" style="position:relative;z-index:2;height:200vh;background:#0b0a09;color:#f2efe9;box-shadow:0 -24px 48px rgba(0,0,0,.45)">
+  <div style="position:sticky;top:0;height:100vh;display:grid;place-items:center;overflow:hidden;background:#0b0a09">
+    <div style="display:grid;gap:18px;justify-items:center;text-align:center;padding:0 8vw">
+      <span data-part-no="" data-depth=".7" style="will-change:transform;font-size:14px;letter-spacing:.3em;color:#bdb8ae;min-height:1.4em">CHAPTER 4</span>
+      <h2 data-part-title="" data-depth=".28" style="will-change:transform;margin:0;font-family:'Nanum Gothic Coding','Courier New',monospace;font-weight:700;font-size:clamp(40px,6.4vw,92px);line-height:1.25;letter-spacing:.04em;text-shadow:0 0 1px rgba(242,239,233,.55),.6px .4px 0 rgba(242,239,233,.18)">아직 죽지 않은 사람</h2>
+    </div>
+  </div>
+</section>
+<section id="comic4" data-comic="4" data-screen-label="4부 만화" style="position:relative;z-index:2;background:#e6e5e2"></section>
+
+<section id="p6" data-part="" data-screen-label="5부 타이틀" style="position:relative;z-index:2;height:200vh;background:#0b0a09;color:#f2efe9;box-shadow:0 -24px 48px rgba(0,0,0,.45)">
+  <div style="position:sticky;top:0;height:100vh;display:grid;place-items:center;overflow:hidden;background:#0b0a09">
+    <div style="display:grid;gap:18px;justify-items:center;text-align:center;padding:0 8vw">
+      <span data-part-no="" data-depth=".7" style="will-change:transform;font-size:14px;letter-spacing:.3em;color:#bdb8ae;min-height:1.4em">CHAPTER 5</span>
+      <h2 data-part-title="" data-depth=".28" style="will-change:transform;margin:0;font-family:'Nanum Gothic Coding','Courier New',monospace;font-weight:700;font-size:clamp(40px,6.4vw,92px);line-height:1.25;letter-spacing:.04em;text-shadow:0 0 1px rgba(242,239,233,.55),.6px .4px 0 rgba(242,239,233,.18)">묻다</h2>
+    </div>
+  </div>
+</section>
+<section id="comic5" data-comic="5" data-screen-label="5부 만화" style="position:relative;z-index:2;background:#e6e5e2"></section>
+
+<div id="stage" aria-hidden="true" style="display:none;position:fixed;inset:0;z-index:1;background:#000;overflow:hidden">
+  <div id="pup" style="position:absolute;inset:0;z-index:3;pointer-events:none"></div>
+  <div id="dots" style="position:absolute;top:-20%;bottom:-20%;left:0;right:0;z-index:3;pointer-events:none;opacity:.16;mix-blend-mode:screen;background-image:repeating-linear-gradient(180deg,rgba(242,239,233,.5) 0 1px,transparent 1px 3px);will-change:transform"></div>
+  <canvas id="fx" style="position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;mix-blend-mode:screen"></canvas>
+  <div id="black" style="position:absolute;inset:0;background:#000;opacity:0;z-index:5"></div>
+  <div id="ttl" style="position:absolute;inset:0;display:grid;place-items:center;font-family:'Black Han Sans','Noto Sans KR',sans-serif;font-size:clamp(120px,26vw,300px);line-height:1;opacity:0;z-index:6;pointer-events:none;text-shadow:3px 0 0 rgba(242,239,233,.35),-3px 2px 0 rgba(0,0,0,.6);will-change:transform,opacity,filter"></div>
+  <div id="scrim" style="position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.72) 70%);opacity:0;pointer-events:none;z-index:7"></div>
+  <div id="sub" style="position:absolute;left:8vw;right:8vw;bottom:24vh;text-align:center;font-family:'Nanum Myeongjo','Apple Myungjo','Batang',serif;font-weight:700;font-size:clamp(24px,3.6vw,40px);line-height:1.5;letter-spacing:-.01em;opacity:0;transform:translateY(12px);text-shadow:0 1px 2px #000,0 0 22px rgba(0,0,0,.9);z-index:8;text-wrap:balance"></div>
+  <div id="cap" style="position:absolute;left:8vw;right:8vw;bottom:9vh;text-align:center;font-weight:500;font-size:clamp(17px,2vw,22px);line-height:1.55;opacity:0;transform:translateY(6px);text-shadow:0 1px 2px #000,0 0 18px rgba(0,0,0,.9);z-index:8;margin:0 auto;max-width:44em;text-wrap:balance"></div>
+  <div id="who" style="position:absolute;left:0;right:0;bottom:4vh;text-align:center;font-size:13px;color:#9a958c;letter-spacing:.06em;opacity:0;transform:translateY(4px);z-index:8"></div>
+  <div id="vig" style="position:absolute;inset:0;z-index:7;pointer-events:none;background:radial-gradient(ellipse 72% 42% at 50% 50%,rgba(0,0,0,.62),rgba(0,0,0,0) 72%);opacity:0;transition:opacity 600ms cubic-bezier(.4,0,.2,1)"></div>
+  <div id="midbox" style="position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 10vw;text-align:center;pointer-events:none">
+    <div id="spk" style="font-size:13px;letter-spacing:.24em;color:#bdb8ae;opacity:0;text-shadow:0 1px 2px #000"></div>
+    <div id="mid" style="font-family:'Nanum Myeongjo','Apple Myungjo','Batang',serif;font-weight:700;font-size:clamp(24px,3.2vw,42px);line-height:1.6;letter-spacing:-.01em;color:#f2efe9;max-width:30em;text-shadow:0 1px 2px #000,0 0 24px rgba(0,0,0,.9)"></div>
+    <div id="attr" style="font-size:14px;letter-spacing:.06em;color:#bdb8ae;opacity:0;text-shadow:0 1px 2px #000"></div>
+  </div>
+</div>
+<main id="story" style="display:none;position:relative;z-index:0"></main>
+
+<section id="credits" data-screen-label="크레딧" style="position:relative;z-index:2;background:#000;color:#f2efe9;height:360vh">
+  <div style="position:sticky;top:0;height:100vh;overflow:hidden">
+    <div id="roll" style="position:absolute;left:0;right:0;top:100%;padding:0 8vw;display:grid;gap:70vh;justify-items:center;text-align:center;will-change:transform;font-family:'Nanum Myeongjo','Apple Myungjo','Batang',serif">
+      <div style="display:grid;gap:22vh;width:min(100%,760px)">
+        <h2 data-cr-line="" style="margin:0 0 6vh;font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:clamp(22px,3vw,30px);text-align:center">이 이야기를 들려주신 분들</h2>
+        <div style="display:grid;gap:5.5vh"><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae">태안읍 장산1리</span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">이왕렬<small style="font-size:.8em;font-weight:400">님</small></span></div><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae"></span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">이기철<small style="font-size:.8em;font-weight:400">님</small></span></div></div>
+        <div style="display:grid;gap:5.5vh"><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae">안면읍 황도리</span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">박부국<small style="font-size:.8em;font-weight:400">님</small></span></div><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae"></span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">이금자<small style="font-size:.8em;font-weight:400">님</small></span></div><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae"></span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">신성갑<small style="font-size:.8em;font-weight:400">님</small></span></div></div>
+        <div style="display:grid;gap:5.5vh"><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae">근흥면 두야1리</span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">조영자<small style="font-size:.8em;font-weight:400">님</small></span></div></div>
+        <div style="display:grid;gap:5.5vh"><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae">원북면 이곡2리</span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">송금자<small style="font-size:.8em;font-weight:400">님</small></span></div><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae"></span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">장능화<small style="font-size:.8em;font-weight:400">님</small></span></div><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae"></span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">김용록<small style="font-size:.8em;font-weight:400">님</small></span></div></div>
+        <div style="display:grid;gap:5.5vh"><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae">소원면 법산리</span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">조부원<small style="font-size:.8em;font-weight:400"> 법사님</small></span></div></div>
+      </div>
+      <div style="display:grid;gap:22vh;width:min(100%,760px)">
+        <h2 data-cr-line="" style="margin:0 0 6vh;font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:clamp(22px,3vw,30px);text-align:center">듣고 받아 적은 사람들</h2>
+        <div style="display:grid;gap:5.5vh"><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae">충남대학교 국어국문학과</span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">김진혁<small style="font-size:.8em;font-weight:400">님</small></span></div><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae"></span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">유채원<small style="font-size:.8em;font-weight:400">님</small></span></div><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae"></span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">이윤민<small style="font-size:.8em;font-weight:400">님</small></span></div><div data-cr-line="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:baseline"><span style="text-align:right;font-weight:400;font-size:clamp(14px,1.8vw,18px);color:#bdb8ae"></span><span style="text-align:left;font-weight:600;font-size:clamp(17px,2.3vw,23px)">신영은<small style="font-size:.8em;font-weight:400">님</small></span></div></div>
+      </div>
+      <p data-cr-line="" style="margin:0;font-size:14px;color:#9a958c">2026년 K-무형유산 지식자원 기초조사 · 국가유산청 · (사)한국민속학회</p>
+    </div>
+    <h2 id="cr-end" style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);margin:0;padding:0 4vw;text-align:center;white-space:nowrap;font-family:'NohHaeChan','Nanum Myeongjo',serif;font-weight:400;font-size:clamp(22px,4.4vw,68px);letter-spacing:-.01em;color:#f2efe9;opacity:0;pointer-events:none">숨겨진 이야기에 대하여</h2>
+  </div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount(){
+    if (window.__mmEngine) return;
+    const sc = document.createElement('script'); sc.src = './mm-engine.js'; document.body.appendChild(sc);
+    this.fallback = setTimeout(() => ['title-frame','title-inner'].forEach(id => { const el = document.getElementById(id); if (el && el.style.opacity === '0') el.style.opacity = 1; }) || ((t) => { if (t) t.style.visibility = 'visible'; })(document.getElementById('cover-title')), 4000);
+  }
+  componentWillUnmount(){ clearTimeout(this.fallback); }
+  renderVals(){ return {}; }
+}
+</script>
+</body>
+</html>
