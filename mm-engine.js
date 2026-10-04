@@ -1,5 +1,21 @@
 (function(){ if (window.__mmEngine) return; window.__mmEngine = 1;
 
+// 모바일 안정화: 위로 스크롤할 때 주소창이 나타나며 창 높이가 바뀌어도 화면이 다시 배치되거나 튀지 않게 한다
+(function mobileStable(){
+  const touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window; if (!touch) return;
+  const de = document.documentElement; de.style.overscrollBehaviorY = 'none'; document.body && (document.body.style.overscrollBehaviorY = 'none');
+  const desc = Object.getOwnPropertyDescriptor(window, 'innerHeight') || Object.getOwnPropertyDescriptor(Window.prototype, 'innerHeight');
+  const rawH = () => desc && desc.get ? desc.get.call(window) : de.clientHeight;
+  let w0 = innerWidth, H = Math.max(rawH(), de.clientHeight);
+  try { Object.defineProperty(window, 'innerHeight', {configurable: true, get: () => H}); } catch(e){}
+  const dsc = Object.getOwnPropertyDescriptor(window, 'scrollY') || Object.getOwnPropertyDescriptor(Window.prototype, 'scrollY');
+  if (dsc && dsc.get){ try { Object.defineProperty(window, 'scrollY', {configurable: true, get: () => Math.max(0, dsc.get.call(window))}); } catch(e){} }
+  window.addEventListener('resize', e => { if (!e.isTrusted) return; const w = innerWidth, h = rawH();
+    if (Math.abs(w - w0) < 2 && Math.abs(h - H) < 200){ if (h > H) H = h; e.stopImmediatePropagation(); return; }
+    w0 = w; H = h; }, true);
+  window.addEventListener('orientationchange', () => setTimeout(() => { w0 = innerWidth; H = rawH(); window.dispatchEvent(new Event('resize')); }, 250));
+})();
+
 /* ==========================================================
    1. 프레임 생성기 — 흑백 명암 합성 → 하프톤 → 오버프린트
    (영상·실사가 오면 같은 파이프라인으로 첫·끝 프레임을 만든다)
@@ -820,7 +836,7 @@ function titleFx(y, vh){
       L.c0 = getComputedStyle(L.sec).color; L.c1 = lum(bg) < .5 ? 'rgb(242,239,233)' : 'rgb(20,18,16)'; L.light = lum(getComputedStyle(L.pin).backgroundColor) > .5; }
     const f = q * q * (3 - 2 * q), a = L.c0.match(/\d+/g).map(Number), b = L.c1.match(/\d+/g).map(Number), sw = (lum(L.c0) > .5) === (lum(L.c1) > .5) ? 0 : clamp((f - .46) / .08, 0, 1), mix = 'rgb(' + a.map((v, i) => Math.round(v + (b[i] - v) * sw)).join(',') + ')';
     L.ov.style.opacity = f.toFixed(3); L.box.style.color = mix;
-    L.deps.forEach(({el, d}) => { el.style.opacity = 1; el.style.transform = 'translate3d(0,' + ((.55 - q * 1.1) * vh * (1 + d * .35)).toFixed(1) + 'px,0)'; if (el.hasAttribute('data-part-no')) el.style.color = mix; });
+    L.deps.forEach(({el, d}) => { el.style.opacity = 1; el.style.transform = 'translate3d(0,' + ((.55 - q * 1.1) * .8 * vh * (1 + d * .35)).toFixed(1) + 'px,0)'; if (el.hasAttribute('data-part-no')) el.style.color = mix; });
   }
   function frame(){
     const vh = innerHeight;
@@ -868,10 +884,66 @@ window.__mmCapPos = CAPPOS;
   };
   if (!window.MMArt){ const sa = document.createElement('script'); sa.src = './mm-art.js'; document.head.appendChild(sa); }
   const artQ = []; const pump = () => { if (!window.MMArt) return setTimeout(pump, 120); const j = artQ.shift(); if (!j) return; try { MMArt.draw(j[0], j[1]); } catch(e){} setTimeout(pump, 20); };
-  const BEAT = 1.15, comics = [], grains = [];
+  const BEAT = 1.15, comics = [], grains = [], FIN = {'4': {i: 8, extra: 2.4}}, BGS = {'4': {i: 5, src: 'assets/bg-liberation.jpg'}}, SCAT = {'5': {i: 3, extra: 2.6}};
+  const hsh = k => { const v = Math.sin(k * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); }, eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  function inkPts(caps, step){ const out = []; caps.forEach(cap => { const r = cap.getBoundingClientRect(); if (!r.width) return; const c = document.createElement('canvas'); c.width = Math.ceil(r.width); c.height = Math.ceil(r.height); const x = c.getContext('2d'), cs = getComputedStyle(cap), solid = cap !== undefined && cap.__fillBg;
+      if (solid){ x.fillStyle = cs.backgroundColor; x.fillRect(0, 0, c.width, c.height); } x.fillStyle = cs.color || '#000'; x.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily; if ('letterSpacing' in x) x.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing; x.textBaseline = 'alphabetic'; const mt = x.measureText('가'), fa = mt.fontBoundingBoxAscent, fd = mt.fontBoundingBoxDescent;
+      cap.querySelectorAll('[data-ln], p').forEach(sp => { if (sp.tagName === 'P' && sp.querySelector('[data-ln]')) return; const rects = [...sp.getClientRects()]; const q = rects[0] || sp.getBoundingClientRect(), lh = parseFloat(getComputedStyle(sp).lineHeight) || q.height; x.fillText(sp.textContent, q.left - r.left, q.top - r.top + (lh - (fa + fd)) / 2 + fa); });
+      x.strokeStyle = solid ? cs.borderTopColor : '#000'; x.lineWidth = solid ? parseFloat(cs.borderTopWidth) || 2 : 2; x.strokeRect(x.lineWidth / 2, x.lineWidth / 2, c.width - x.lineWidth, c.height - x.lineWidth);
+      const d = x.getImageData(0, 0, c.width, c.height).data; for (let yy = 0; yy < c.height; yy += step) for (let xx = 0; xx < c.width; xx += step){ { const k = (yy * c.width + xx) * 4; if (d[k + 3] > 110) out.push({x: r.left + xx, y: r.top + yy, v: solid ? Math.round(d[k] * .3 + d[k + 1] * .59 + d[k + 2] * .11) : 20, ink: solid && d[k] > 128 ? 2 : 1}); } } }); return out; }
+  function scatter(S, vw, vh, fNow){ const P = S.P, p = clamp((S.p - .28) / .72, 0, 1), cv = S.cv;
+    { const dr = fNow - S.i - .5, fadeOut = S.p >= 1 ? 1 - sm(clamp((dr - .25) / .35, 0, 1)) : 1; S.big.style.opacity = (sm(clamp((p - .9) / .08, 0, 1)) * fadeOut).toFixed(3); }
+    if (p > .01 && !S.wh){ S.wh = 1; SFX('wind', 1.4); } if (p <= 0) S.wh = 0; const hide = p > 0 ? 0 : 1; P.fr.style.opacity = hide; P.caps.forEach(c => { if (c !== S.last) c.cap.style.opacity = hide; });
+    if (p <= 0 || p >= 1){ if (cv.width) cv.width = 0; if (p <= 0) S.A = null; return; }
+    const W = Math.ceil(cv.clientWidth), H = Math.ceil(cv.clientHeight); if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; S.img = null; }
+    const pr = cv.getBoundingClientRect();
+    if (!S.A){ const fr = P.fr, FW = fr.offsetWidth, FH = fr.offsetHeight, bd = 3, br = fr.getBoundingClientRect(), cx = br.left + br.width / 2 - pr.left, cy = br.top + br.height / 2 - pr.top;
+      const th = ((fr.style.transform.match(/rotate\((-?[\d.]+)deg/) || [0, 0])[1]) * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th);
+      // 칸 그림을 화면에 그려진 그대로(테두리·여백·배경 크기·위치·확대·회전) 다시 그린다
+      const oc = document.createElement('canvas'); oc.width = FW; oc.height = FH; const o = oc.getContext('2d'); o.fillStyle = '#f7f5f1'; o.fillRect(0, 0, FW, FH);
+      const art = fr._art, im = S.im; if (art && im.complete && im.naturalWidth){ const iw = im.naturalWidth, ih = im.naturalHeight, IW = FW - bd * 2, IH = FH - bd * 2, aw = IW * 1.16, ah = IH * 1.16, ax = bd - IW * .08, ay = bd - IH * .08;
+        const bsz = art.style.backgroundSize || '', bp = (art.style.backgroundPosition || '50% 50%').split(' ').map(v => parseFloat(v) / 100); let bw, bh;
+        if (/%/.test(bsz)){ bw = aw * parseFloat(bsz) / 100; bh = bw * ih / iw; } else { const k = Math.max(aw / iw, ah / ih); bw = iw * k; bh = ih * k; }
+        o.save(); o.beginPath(); o.rect(bd, bd, IW, IH); o.clip(); o.translate(ax + aw / 2, ay + ah / 2); o.scale(1.04, 1.04); o.translate(-(ax + aw / 2), -(ay + ah / 2)); o.filter = 'grayscale(1) contrast(1.12)';
+        o.drawImage(im, ax + (aw - bw) * (isNaN(bp[0]) ? .5 : bp[0]), ay + (ah - bh) * (isNaN(bp[1]) ? .5 : bp[1]), bw, bh); o.restore(); }
+      o.strokeStyle = '#141210'; o.lineWidth = bd; o.strokeRect(bd / 2, bd / 2, FW - bd, FH - bd);
+      const od = o.getImageData(0, 0, FW, FH).data, st = Math.max(1, FW / 1000), pts = [];
+      for (let ly = 0; ly < FH; ly += st) for (let lx = 0; lx < FW; lx += st){ const k = ((ly | 0) * FW + (lx | 0)) * 4, rx = lx + st / 2 - FW / 2, ry = ly + st / 2 - FH / 2; pts.push(cx + rx * cs - ry * sn, cy + rx * sn + ry * cs, od[k] * .3 + od[k + 1] * .59 + od[k + 2] * .11, 0); }
+      inkPts(P.caps.filter(c => c !== S.last).map(c => (c.cap.__fillBg = 1, c.cap)), 1).forEach(q => pts.push(q.x - pr.left, q.y - pr.top, q.v, q.ink));
+      const tg = []; { const bb = S.bs.getBoundingClientRect(), c = document.createElement('canvas'); c.width = Math.ceil(bb.width) + 4; c.height = Math.ceil(bb.height) + 4; const tx = c.getContext('2d'), ccs = getComputedStyle(S.bs); tx.font = ccs.fontWeight + ' ' + ccs.fontSize + ' ' + ccs.fontFamily; if ('letterSpacing' in tx) tx.letterSpacing = ccs.letterSpacing === 'normal' ? '0px' : ccs.letterSpacing; tx.fillStyle = '#000'; tx.textBaseline = 'alphabetic'; const m2 = tx.measureText(S.bs.textContent), lh2 = parseFloat(ccs.lineHeight) || bb.height; tx.fillText(S.bs.textContent, 2, 2 + (lh2 - (m2.fontBoundingBoxAscent + m2.fontBoundingBoxDescent)) / 2 + m2.fontBoundingBoxAscent);
+        const td = tx.getImageData(0, 0, c.width, c.height).data; for (let yy = 0; yy < c.height; yy++) for (let xx = 0; xx < c.width; xx++) if (td[(yy * c.width + xx) * 4 + 3] > 120) tg.push(bb.left - 2 + xx - pr.left, bb.top - 2 + yy - pr.top); }
+      const N = pts.length / 4, T = tg.length / 2, A = {N, x: new Float32Array(N), y: new Float32Array(N), v: new Uint8Array(N), dx: new Float32Array(N), dy: new Float32Array(N), ph: new Float32Array(N), dl: new Float32Array(N), tx: new Float32Array(N), ty: new Float32Array(N), go: new Uint8Array(N)};
+      const every = Math.max(1, Math.floor(N / Math.max(1, T * 1.15)));
+      for (let k = 0; k < N; k++){ A.x[k] = pts[k * 4]; A.y[k] = pts[k * 4 + 1]; A.v[k] = pts[k * 4 + 2]; const ink = pts[k * 4 + 3]; A.dx[k] = 460 + Math.random() * 260; A.dy[k] = 120 + Math.random() * 90; A.ph[k] = Math.random() * 6.283; A.dl[k] = clamp(A.x[k] / Math.max(1, W), 0, 1) * .26 + Math.random() * .07;
+        if (T && (ink === 1 || k % every === 0)){ const t = (k * 7919) % T; A.tx[k] = tg[t * 2]; A.ty[k] = tg[t * 2 + 1]; A.go[k] = 1; } }
+      S.A = A; }
+    const A = S.A, x = cv.getContext('2d'); if (!S.img) S.img = x.createImageData(W, H); const buf = new Uint32Array(S.img.data.buffer); buf.fill(0);
+    for (let k = 0; k < A.N; k++){ const u = clamp((p - .02 - A.dl[k]) / .5, 0, 1), su = u * u, go = A.go[k], x0 = A.x[k], y0 = A.y[k];
+      // 바람: 왼쪽부터 차례로 떨어져 나가 같은 기류(물결 치는 흐름선)를 따라 오른쪽 위로 흘러간다
+      const X = x0 + A.dx[k] * su, flow = Math.sin(X * .0075 + y0 * .0035 + su * 2.6) * 46 + Math.sin(X * .019 - y0 * .006 + su * 4.1) * 14;
+      let px = X + Math.sin(A.ph[k] + su * 6) * 3 * su, py = y0 - A.dy[k] * su + flow * su + Math.cos(A.ph[k] + su * 5) * 3 * su, al = 1, v = A.v[k];
+      if (go){ const w2 = clamp((p - .48 - A.dl[k] * .3) / .4, 0, 1), gw = eio(w2); px += (A.tx[k] - px) * gw; py += (A.ty[k] - py) * gw; v = v + (20 - v) * gw; }
+      else al = 1 - sm(clamp((p - .4 - A.dl[k] * .3) / .3, 0, 1));
+      if (al <= .02) continue; const ix = px | 0, iy = py | 0; if (ix < 0 || iy < 0 || ix >= W || iy >= H) continue;
+      const vv = v | 0; buf[iy * W + ix] = ((al * 255) << 24) | ((Math.max(0, vv - 3)) << 16) | ((Math.max(0, vv - 1)) << 8) | vv; }
+    x.putImageData(S.img, 0, 0); }
+  // 칸별 효과: 상여 뚜껑은 쿵·쿵 좌우로 기울고, 순사 칸은 발소리에 흔들리고, 애장터에는 바람이 지난다
+  const SFX = (k, a) => { try { window.MMSfx && window.MMSfx.play(k, a); } catch(e){} };
+  const FXK = {'수레 위 상여 뚜껑': 'tilt', '마을에 들어선 순사': 'steps', '마을 뒤 산자락, 애장터': 'wind', '보따리를 안고 산길을 오르는 뒷모습': 'wind'};
+  function panelFx(P, d){ const kind = FXK[P.ph]; if (!kind || window.__mmCapEdit) return; const now = performance.now(), st = P.fxs || (P.fxs = {stage: 0, off: 0, v: 0, yb: 0, vy: 0, tg: 0, t: now, env: 0}), dt = Math.min(.05, (now - st.t) / 1000); st.t = now;
+    const marks = kind === 'tilt' ? [-.14, .16] : [-.22], stage = marks.filter(m => d > m).length;
+    if (stage !== st.stage){ if (stage > st.stage){
+        if (kind === 'tilt'){ SFX('thump', stage === 1 ? -.6 : .6); st.vy += 170; }
+        if (kind === 'steps'){ SFX('steps'); st.kick = [now + 60, now + 560]; }
+        if (kind === 'wind'){ SFX('wind'); st.env = 1; } }
+      st.tg = kind === 'tilt' ? [0, -3.2, 3.2][stage] : 0; st.stage = stage; }
+    if (st.kick) st.kick = st.kick.filter(t => { if (now >= t){ st.vy += 95; return false; } return true; });
+    st.env = Math.max(0, st.env - dt / 4.5); const sway = kind === 'wind' ? Math.sin(now / 520) * .8 * st.env : 0;
+    st.v += ((st.tg - st.off) * 150 - st.v * 11) * dt; st.off += st.v * dt; st.vy += (-st.yb * 320 - st.vy * 17) * dt; st.yb += st.vy * dt;
+    P.fr.style.transform = 'translateY(' + st.yb.toFixed(1) + 'px) rotate(' + (P.rot0 + st.off + sway).toFixed(2) + 'deg)'; P.fr.style.transformOrigin = kind === 'tilt' ? '50% 92%' : '50% 50%'; }
   let gl = 0; const grainTick = now => { if (now - gl > 170){ gl = now; grains.forEach(c => { const w = Math.ceil(c.clientWidth / 2), h = Math.ceil(c.clientHeight / 2); if (!w || c.getBoundingClientRect().bottom < 0 || c.getBoundingClientRect().top > innerHeight) return; if (c.width !== w){ c.width = w; c.height = h; } const x = c.getContext('2d'), im = x.createImageData(w, h), d = im.data; for (let i = 0; i < d.length; i += 4){ const v = 120 + Math.random() * 135; d[i] = d[i+1] = d[i+2] = v; d[i+3] = 255; } x.putImageData(im, 0, 0); }); } };
   document.querySelectorAll('[data-comic]').forEach(sec => { const part = sec.dataset.comic, beats = DATA[part]; if (!beats) return;
-    sec.style.height = (beats.length * BEAT * 100 + 150) + 'vh';
+    const fin = FIN[part], sct = SCAT[part]; sec.style.height = ((beats.length + (fin ? fin.extra : 0) + (sct ? sct.extra : 0)) * BEAT * 100 + 150) + 'vh';
     const pin = document.createElement('div'); pin.style.cssText = 'position:sticky;top:0;height:100vh;overflow:hidden;background:#e6e5e2'; sec.appendChild(pin);
     // 사진과 같은 톤: 회백색 안개 + 가장자리 살짝 어둡게 + 고운 입자
     const tone = document.createElement('div'); tone.setAttribute('aria-hidden', 'true'); tone.style.cssText = 'position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 42%,rgba(250,249,247,.85),rgba(250,249,247,0) 70%),radial-gradient(ellipse 120% 90% at 50% 50%,rgba(0,0,0,0) 55%,rgba(40,38,35,.18) 100%)'; pin.appendChild(tone);
@@ -904,8 +976,8 @@ window.__mmCapPos = CAPPOS;
         cap.dataset.capKey = part + '-' + i + '-' + gi; grp.forEach(t => { const p = document.createElement('p'); p.style.margin = '0'; t.split('\n').forEach((seg, k) => { if (k) p.appendChild(document.createElement('br')); const NW = '그 시절의 삶이 온전히 보였습니다'; const at = seg.indexOf(NW); if (at < 0){ p.appendChild(document.createTextNode(seg)); return; } p.appendChild(document.createTextNode(seg.slice(0, at))); const sp = document.createElement('span'); sp.style.whiteSpace = 'nowrap'; sp.textContent = NW; p.appendChild(sp); p.appendChild(document.createTextNode(seg.slice(at + NW.length))); }); cap.appendChild(p); }); wrap.appendChild(cap); return {cap, k: wide ? plan[gi].k : [1.4, .9, 1.25][gi % 3], dx: wide ? (plan[gi].sd === -1 || plan[gi].sd === 'T' ? -1 : 1) : (gi % 2 ? 1 : -1)}; });
       caps.forEach(({cap}, gi) => { const FX = CAP_FIX[cap.dataset.capKey], L = FX || [].concat(...groups[gi].map(t => t.split('\n'))).map(t => t.trim()).filter(Boolean); cap.textContent = ''; if (FX) cap.dataset.fix = '1'; const p = document.createElement('p'); p.style.margin = '0'; L.forEach(t => { const sp = document.createElement('span'); sp.dataset.ln = '1'; sp.style.cssText = 'display:block' + (FX ? ';white-space:nowrap' : ''); sp.textContent = t; p.appendChild(sp); }); cap.appendChild(p); cap.dataset.hug = '1'; cap.style.width = FX ? 'max-content' : 'fit-content'; if (FX) cap.style.maxWidth = 'none'; });
       pin.appendChild(wrap);
-      const applyPos = () => caps.forEach(({cap}) => { if (MQ()) return; const p = CAPPOS.get(cap.dataset.capKey); if (!p) return; if (p.l != null) ['top', 'bottom', 'left', 'right'].forEach(k => cap.style[k] = ''); if (p.l != null){ cap.style.left = p.l + '%'; cap.style.top = p.t + '%'; } if (p.w && !cap.dataset.fix){ cap.style.width = cap.dataset.hug ? 'fit-content' : p.w + '%'; cap.style.maxWidth = cap.dataset.hug ? p.w + '%' : 'none'; } });
-      const clampVW = () => { if (MQ()) return; caps.forEach(({cap}) => { if (!cap.dataset.fix) return; cap.querySelectorAll('[data-ln]').forEach(l => l.style.whiteSpace = 'nowrap'); cap.style.width = 'max-content'; cap.style.maxWidth = 'none'; }); const wl = innerWidth / 2 - wrap.offsetWidth / 2; caps.forEach(({cap}) => { const left = wl + cap.offsetLeft, room = innerWidth - 14 - left; if (cap.offsetWidth > room && room > 120){ if (cap.dataset.fix){ cap.querySelectorAll('[data-ln]').forEach(l => l.style.whiteSpace = 'normal'); cap.style.width = 'fit-content'; } cap.style.maxWidth = Math.floor(room) + 'px'; } }); };
+      const applyPos = () => caps.forEach(({cap}) => { if (MQ() || cap.dataset.solo) return; const p = CAPPOS.get(cap.dataset.capKey); if (!p) return; if (p.l != null) ['top', 'bottom', 'left', 'right'].forEach(k => cap.style[k] = ''); if (p.l != null){ cap.style.left = p.l + '%'; cap.style.top = p.t + '%'; } if (p.w && !cap.dataset.fix){ cap.style.width = cap.dataset.hug ? 'fit-content' : p.w + '%'; cap.style.maxWidth = cap.dataset.hug ? p.w + '%' : 'none'; } });
+      const clampVW = () => { if (MQ()) return; caps.forEach(({cap}) => { if (!cap.dataset.fix) return; cap.querySelectorAll('[data-ln]').forEach(l => l.style.whiteSpace = 'nowrap'); cap.style.width = 'max-content'; cap.style.maxWidth = 'none'; }); const wl = innerWidth / 2 - wrap.offsetWidth / 2; caps.forEach(({cap}) => { if (cap.dataset.solo) return; const left = wl + cap.offsetLeft, room = innerWidth - 14 - left; if (cap.offsetWidth > room && room > 120){ if (cap.dataset.fix){ cap.querySelectorAll('[data-ln]').forEach(l => l.style.whiteSpace = 'normal'); cap.style.width = 'fit-content'; } cap.style.maxWidth = Math.floor(room) + 'px'; } }); };
       const applyPos2 = () => { applyPos(); requestAnimationFrame(clampVW); };
       CAPPOS.reg.push({caps, wrap, relayout: () => { if (wide && caps.length > 1) window.dispatchEvent(new Event('resize')); else spotsReset(); applyPos(); }});
       const spotsReset = () => caps.forEach(({cap}, gi) => { if (wide) return; ['top', 'bottom', 'left', 'right'].forEach(k => cap.style[k] = ''); const [h, v] = spots[gi]; const [hp, hv] = h.split(':'), [vp, vv] = v.split(':'); cap.style[hp] = hv; cap.style[vp] = vv; });
@@ -917,7 +989,7 @@ window.__mmCapPos = CAPPOS;
               if (out > room[p.sd]){ cap.style[hp] = ''; cap.style[vp] = ''; hp = p.sd === 'T' ? 'right' : 'left'; hv = 'calc(100% - ' + p.o + 'px)'; vp = 'top'; vv = p.sd === 'T' ? '-4%' : '60%'; cap.style.maxWidth = G(p.o, gi); cap.style[hp] = hv; cap.style[vp] = vv; } } });
           caps.forEach(({cap}, gi) => { for (let j = 0; j < gi; j++){ const q = caps[j].cap, ax = q.offsetLeft, aw = q.offsetWidth, bx = cap.offsetLeft, bw = cap.offsetWidth; if (bx + bw <= ax || bx >= ax + aw) continue; const need = q.offsetTop + q.offsetHeight + 14; if (cap.offsetTop < need){ cap.style.bottom = ''; cap.style.top = need + 'px'; } } }); applyPos(); clampVW(); };
         requestAnimationFrame(fix); (document.fonts ? document.fonts.ready : Promise.resolve()).then(fix); addEventListener('resize', () => { fix(); }); }
-      return {w0: wrap.style.width, relayout: () => { if (wide && caps.length > 1) window.dispatchEvent(new Event('resize')); else spotsReset(); applyPos(); }, wrap, fr, caps, side, xo: wide ? 0 : 1, sp: [1.0, 1.25, .9, 1.15, 1.05][i % 5], cs: [1.35, 1.5, 1.3][i % 3]}; });
+      return {ph, rot0: parseFloat((fr.style.transform.match(/rotate\((-?[\d.]+)deg/) || [0, 0])[1]) || 0, w0: wrap.style.width, relayout: () => { if (wide && caps.length > 1) window.dispatchEvent(new Event('resize')); else spotsReset(); applyPos(); }, wrap, fr, caps, side, xo: wide ? 0 : 1, sp: [1.0, 1.25, .9, 1.15, 1.05][i % 5], cs: [1.35, 1.5, 1.3][i % 3]}; });
     // 모바일: 세로는 칸 위·아래로 상자를 쌓고, 가로는 칸 양옆 두 줄로 — 읽는 순서는 그대로
     const mob = P => { const m = MQ(), {wrap, fr, caps} = P, n = caps.length, half = Math.ceil(n / 2);
       if (!P.colL){ P.colL = document.createElement('div'); P.colR = document.createElement('div'); [P.colL, P.colR].forEach(c => c.style.cssText = 'display:flex;flex-direction:column;gap:10px;min-width:0'); P.ar = (fr.style.aspectRatio || '5/4').split('/').map(Number); }
@@ -937,7 +1009,40 @@ window.__mmCapPos = CAPPOS;
     let nx = sec.nextElementSibling; while (nx && (nx.tagName !== 'SECTION' || getComputedStyle(nx).display === 'none')) nx = nx.nextElementSibling;
     const tail = document.createElement('div'); tail.setAttribute('aria-hidden', 'true'); tail.style.cssText = 'position:absolute;inset:0;pointer-events:none;opacity:0;z-index:200;background:' + (nx ? getComputedStyle(nx).backgroundColor : '#000'); pin.appendChild(tail);
     if (nx) nx.style.boxShadow = 'none';
-    comics.push({sec, bg, bg2, panels, skin, prevT, tail});
+    // 마지막 칸 피날레: 그림이 커지며 화면을 채우고, 상자 없이 가운데 위에 글이 떠오른다
+    let F = null; if (fin && panels[fin.i]){ const P = panels[fin.i];
+      Object.assign(P.fr.style, {border: 'none', boxShadow: 'none', transform: 'none'});
+      const ov = document.createElement('div'); ov.setAttribute('aria-hidden', 'true'); ov.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;z-index:150;background:#f3f2ef';
+      const art = P.fr._art, ia = document.createElement('div'); ia.style.cssText = 'position:absolute;inset:-8%;overflow:hidden;filter:grayscale(1) contrast(1.12);will-change:transform';
+      const url = art && art.tagName !== 'CANVAS' ? (art.style.backgroundImage || (art.style.background.match(/url\([^)]*\)/) || [''])[0]) : '';
+      const scene = document.createElement('div'); scene.style.cssText = 'position:absolute;left:0;top:0;background:' + url + ' 0 0/100% 100% no-repeat'; ia.appendChild(scene);
+      const tree = document.createElement('div'); tree.style.cssText = 'position:absolute;inset:0;background:' + url + ' 0 0/100% 100% no-repeat;transform-origin:9% 66%;will-change:transform;-webkit-mask-image:radial-gradient(ellipse 25% 24% at 21% 40%,#000 62%,transparent 100%);mask-image:radial-gradient(ellipse 25% 24% at 21% 40%,#000 62%,transparent 100%)'; scene.appendChild(tree);
+      const SM = 'radial-gradient(ellipse 4.6% 6.2% at 43.6% 58.2%,#000 45%,transparent 100%)', patch = document.createElement('div'); patch.style.cssText = 'position:absolute;inset:0;background:#f2f2f1;-webkit-mask-image:' + SM + ';mask-image:' + SM; scene.appendChild(patch);
+      const puffs = [0, 1, 2].map(() => { const el = document.createElement('div'); el.style.cssText = 'position:absolute;inset:0;background:' + url + ' 0 0/100% 100% no-repeat;transform-origin:39.9% 64.3%;opacity:0;will-change:transform,opacity;-webkit-mask-image:' + SM + ';mask-image:' + SM; scene.appendChild(el); return el; });
+      const amb = document.createElement('canvas'); amb.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; scene.appendChild(amb);
+      ov.appendChild(ia); const veil = document.createElement('div'); veil.style.cssText = 'position:absolute;inset:0;background:radial-gradient(ellipse 55% 45% at 88% 8%,rgba(243,242,239,.85),rgba(243,242,239,0) 70%);opacity:0'; ov.appendChild(veil); pin.appendChild(ov);
+      const txt = document.createElement('div'); txt.style.cssText = "position:absolute;right:6vw;top:10vh;z-index:151;display:grid;gap:20px;justify-items:end;text-align:right;max-width:min(88vw,720px);pointer-events:none;font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:clamp(19px,2.3vw,27px);line-height:1.6;color:#141210;word-break:keep-all";
+      const blocks = P.caps.slice(1).map(({cap}) => { const bl = document.createElement('p'); bl.style.cssText = 'margin:0;opacity:0;will-change:transform,opacity'; (CAP_FIX[cap.dataset.capKey] || [cap.textContent]).forEach(t => { const sp = document.createElement('span'); sp.style.display = 'block'; sp.textContent = t; bl.appendChild(sp); }); txt.appendChild(bl); cap.remove(); return bl; });
+      pin.appendChild(txt);
+      const c0 = P.caps[0], holder = document.createElement('div'); holder.style.cssText = 'position:absolute;left:0;right:0;top:9vh;z-index:152;display:flex;justify-content:center;pointer-events:none;padding:0 6vw;opacity:0';
+      c0.cap.dataset.solo = '1'; ['left', 'top', 'right', 'bottom'].forEach(k => c0.cap.style[k] = ''); c0.cap.style.position = 'relative'; holder.appendChild(c0.cap); pin.appendChild(holder); c0.k = 1.1; c0.dx = 0; P.caps = [c0];
+      const smoke = [], birds = [[0, .16, 1], [-.05, .2, .82], [-.09, .14, .7]].map(([x0, y, sc]) => ({x: x0 - .05, y, v: .016, ph: Math.random() * 6.28, s: sc, cyc: 2.4 + Math.random() * 1.6}));
+      F = {P, i: fin.i, extra: fin.extra, ov, ia, scene, tree, puffs, amb, veil, txt, blocks, holder, smoke, birds, last: 0, spawn: 0}; }
+    // 칸 바깥 배경 그림: 해당 칸이 오면 안개처럼 떠오르고, 꽃잎이 바람을 타고 흩날린다
+    let BG = null; const bgc = BGS[part]; if (bgc && panels[bgc.i]){ const lay = document.createElement('div'); lay.setAttribute('aria-hidden', 'true'); lay.style.cssText = 'position:absolute;inset:0;pointer-events:none;opacity:0;z-index:1;overflow:hidden';
+      const pic = document.createElement('div'); pic.style.cssText = 'position:absolute;inset:-6%;background:url(' + bgc.src + ') center/cover no-repeat;will-change:transform'; lay.appendChild(pic);
+      const veil = document.createElement('div'); veil.style.cssText = 'position:absolute;inset:0;background:radial-gradient(ellipse 46% 52% at 50% 46%,rgba(230,229,226,.55),rgba(230,229,226,0) 75%)'; lay.appendChild(veil);
+      const pc = document.createElement('canvas'); pc.style.cssText = 'position:absolute;inset:0;width:100%;height:100%'; lay.appendChild(pc);
+      const pins = [...pin.children]; const firstPanel = panels[0] && panels[0].wrap; pin.insertBefore(lay, firstPanel || null);
+      const PET = Array.from({length: 46}, () => ({x: Math.random(), y: Math.random(), z: .4 + Math.random() * .9, r: Math.random() * 6.28, vr: (Math.random() - .5) * 2.2, ph: Math.random() * 6.28, hue: Math.random()}));
+      BG = {i: bgc.i, lay, pic, pc, PET, t: performance.now()}; }
+    // 흩어짐: 그림과 앞의 두 상자가 조각으로 부서져 바람에 흩어지고, 그 조각들이 모여 다음 상자의 글자가 된다
+    let S = null; if (sct && panels[sct.i] && !reduced){ const P = panels[sct.i], cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true'); cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:160'; pin.appendChild(cv);
+      const last = P.caps[P.caps.length - 1]; last.cap.dataset.solo = '1'; last.cap.style.display = 'none';
+      const big = document.createElement('div'); big.style.cssText = "position:absolute;inset:0;z-index:159;display:flex;align-items:center;justify-content:center;padding:0 6vw;pointer-events:none;opacity:0"; const bs = document.createElement('span'); bs.style.cssText = "font-family:'NohHaeChan','Nanum Myeongjo',serif;font-weight:400;font-size:clamp(30px,5.4vw,78px);line-height:1.2;color:#141210;letter-spacing:-.01em;white-space:nowrap"; bs.textContent = (last.cap.textContent || '').trim(); big.appendChild(bs); pin.appendChild(big);
+      const art = P.fr._art, m = art && art.style.backgroundImage ? art.style.backgroundImage.match(/url\(["']?([^"')]+)/) : null, im = new Image(); if (m) im.src = m[1];
+      S = {i: sct.i, extra: sct.extra, P, cv, last, im, big, bs, parts: null, p: 0}; }
+    comics.push({sec, bg, bg2, panels, skin, prevT, tail, F, BG, S});
     artQ.sort(() => 0); setTimeout(pump, 400);
   });
   function frame(){ const vh = innerHeight, vw = innerWidth;
@@ -945,13 +1050,45 @@ window.__mmCapPos = CAPPOS;
       const r = C.sec.getBoundingClientRect(); if (r.bottom < 0 || r.top > vh) return;
       const arr = sm(clamp(1 - r.top / vh, 0, 1)); C.bg.style.opacity = C.bg2.style.opacity = arr.toFixed(3);
       { const left = (r.bottom - vh) / vh; C.tail.style.opacity = sm(clamp(1 - left / .9, 0, 1)).toFixed(3); }
-      const q = clamp(-r.top / Math.max(1, r.height - vh * 1.9), 0, 1), n = C.panels.length, f = q * (n - .001) * 1;
+      const q = clamp(-r.top / Math.max(1, r.height - vh * 1.9), 0, 1), n = C.panels.length; let f = q * (n - .001 + (C.F ? C.F.extra : 0) + (C.S ? C.S.extra : 0));
+      if (C.S){ const S = C.S, a0 = S.i + .5; if (f > a0 + S.extra){ S.p = 1; f -= S.extra; } else if (f > a0){ S.p = (f - a0) / S.extra; f = a0; } else S.p = 0; try { scatter(S, vw, vh, f); } catch(err){ console.warn('scatter', err); } }
       C.bg.style.transform = 'translate3d(0,' + (-q * vh * .9).toFixed(1) + 'px,0)'; C.bg2.style.transform = 'translate3d(0,' + (-q * vh * .35).toFixed(1) + 'px,0)';
-      C.panels.forEach((P, i) => { const d = f - i - .5; if (Math.abs(d) > 1.6){ P.wrap.style.opacity = 0; P.wrap.style.pointerEvents = 'none'; return; }
+      if (C.BG){ const B = C.BG, dB = f - B.i - .5, o = 1 - sm(clamp((Math.abs(dB) - .55) / .55, 0, 1)); B.lay.style.opacity = o.toFixed(3);
+        if (o > .01){ B.pic.style.transform = 'translate3d(0,' + (-dB * vh * .08).toFixed(1) + 'px,0) scale(' + (1.04 + Math.abs(dB) * .05).toFixed(4) + ')'; const now = performance.now(), dt = Math.min(.05, (now - B.t) / 1000); B.t = now; const cv = B.pc, W = Math.ceil(cv.clientWidth), H = Math.ceil(cv.clientHeight); if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; }
+          const x = cv.getContext('2d'), gust = 1 + Math.min(3, Math.abs(B.vy || 0)); x.clearRect(0, 0, W, H); B.PET.forEach(p => { p.y += dt * .05 * p.z * gust; p.x += dt * (.03 + .02 * Math.sin(now / 1400 + p.ph)) * p.z * gust; p.r += dt * p.vr; if (p.y > 1.05){ p.y = -.05; p.x = Math.random() * .9; } if (p.x > 1.05) p.x = -.05;
+            const s = 5 + p.z * 7, px = p.x * W, py = p.y * H + Math.sin(now / 900 + p.ph) * 6; x.save(); x.translate(px, py); x.rotate(p.r); x.scale(1, .55 + .45 * Math.abs(Math.sin(now / 700 + p.ph))); x.fillStyle = 'rgba(' + (236 - p.hue * 12) + ',' + (178 + p.hue * 20) + ',' + (178 + p.hue * 16) + ',' + (.55 + p.z * .3).toFixed(2) + ')'; x.beginPath(); x.ellipse(0, 0, s, s * .62, 0, 0, 7); x.fill(); x.restore(); }); }
+        B.vy = ((B.pf == null ? f : f - B.pf) * 60); B.pf = f; }
+      const FF = C.F, fe = FF ? clamp((f - FF.i - .5 + .3) / (FF.extra + .7), 0, 1) : 0;
+      C.panels.forEach((P, i) => { const dr = f - i - .5, fz = FF && i === FF.i && dr > -.3, d = FF && i === FF.i && dr > -.3 ? -.3 + (dr + .3 < .5 ? (dr + .3) - (dr + .3) * (dr + .3) : .25) : dr; if (Math.abs(d) > 1.6){ P.wrap.style.opacity = 0; P.wrap.style.pointerEvents = 'none'; return; }
         const y = -d * vh * .95 * P.sp, x = (P.mode ? 0 : P.xo) * (P.side * vw * .06 - d * P.side * vw * .02), op = 1 - sm(clamp((Math.abs(d) - .45) / .6, 0, 1));
         P.wrap.style.opacity = op.toFixed(3); P.wrap.style.zIndex = 100 - Math.round(Math.abs(d) * 20); P.wrap.style.pointerEvents = op < .2 ? 'none' : ''; P.wrap.style.transform = 'translate3d(calc(-50% + ' + x.toFixed(1) + 'px), calc(-58% + ' + y.toFixed(1) + 'px), 0)';
         if (P.fr._art) P.fr._art.style.transform = 'translate3d(0,' + (d * 34).toFixed(1) + 'px,0) scale(1.04)';
-        grainTick(performance.now()); P.caps.forEach(c => { c.cap.style.transform = window.__mmCapEdit ? 'none' : 'translate3d(' + (P.mode ? 0 : d * c.dx * 18).toFixed(1) + 'px,' + (-d * vh * (c.k - 1.1) * (P.mode ? .12 : .5)).toFixed(1) + 'px,0)'; }); }); });
+        if (FF && i === FF.i && !fz) FF.holder.style.opacity = sm(clamp((d + .32) / .26, 0, 1)).toFixed(3);
+        if (fz){ const F = FF, sm2 = x => x * x * (3 - 2 * x), eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2, g = eio(clamp(fe / .46, 0, 1)), pr = C.sec.firstElementChild.getBoundingClientRect();
+          P.fr.style.visibility = 'hidden'; const r0 = P.fr.getBoundingClientRect(); const L = r0.left - pr.left, T = r0.top - pr.top, OW = r0.width + (vw - r0.width) * g, OH = r0.height + (vh - r0.height) * g;
+          Object.assign(F.ov.style, {opacity: '1', left: (L * (1 - g)).toFixed(1) + 'px', top: (T * (1 - g)).toFixed(1) + 'px', width: OW.toFixed(1) + 'px', height: OH.toFixed(1) + 'px'});
+          const IW = OW * 1.16, IH = OH * 1.16, bw = Math.max(IW * 1.2496, IH * 1402 / 1122), bh = bw * 1122 / 1402; Object.assign(F.scene.style, {width: bw.toFixed(1) + 'px', height: bh.toFixed(1) + 'px', left: ((IW - bw) / 2).toFixed(1) + 'px', top: ((IH - bh) / 2).toFixed(1) + 'px'});
+          F.ia.style.transform = 'scale(' + (1 + fe * .04).toFixed(4) + ')'; if (fe > .6 && !F.chirp){ F.chirp = 1; SFX('birds'); } if (fe < .3) F.chirp = 0; F.veil.style.opacity = sm2(clamp((fe - .46) / .12, 0, 1)).toFixed(3);
+          F.holder.style.opacity = (sm(clamp((dr + .32) / .26, 0, 1)) * (1 - sm2(clamp((fe - .48) / .08, 0, 1)))).toFixed(3);
+          F.blocks.forEach((bl, k) => { const t = sm2(clamp((fe - (.58 + k * .17)) / .13, 0, 1)); bl.style.opacity = t.toFixed(3); bl.style.transform = 'translate3d(0,' + ((1 - t) * 16).toFixed(1) + 'px,0)'; });
+          const now = performance.now(), dt = Math.min(.05, (now - (F.last || now)) / 1000), T2 = now / 1000; F.last = now;
+          F.tree.style.transform = 'rotate(' + (Math.sin(T2 * 1.1) * .55 + Math.sin(T2 * 2.7) * .18).toFixed(3) + 'deg) skewX(' + (Math.sin(T2 * 1.1 + .6) * .5).toFixed(3) + 'deg)';
+          const cv = F.amb, CW = Math.round(bw / 1.5), CH = Math.round(bh / 1.5); if (cv.width !== CW || cv.height !== CH){ cv.width = CW; cv.height = CH; } const x = cv.getContext('2d'); x.clearRect(0, 0, CW, CH);
+          F.puffs.forEach((el, k) => { const p = (T2 / 5.5 + k / 3) % 1, e2 = p * (2 - p); el.style.opacity = (Math.sin(Math.PI * p) * .95).toFixed(3); el.style.transform = 'translate(' + (e2 * 2.2 + Math.sin(T2 * .9 + k) * .25).toFixed(3) + '%,' + (-e2 * 5.5).toFixed(3) + '%) scale(' + (.85 + e2 * .45).toFixed(3) + ') skewX(' + (-6 * e2).toFixed(2) + 'deg)'; });
+          const vt = (-parseFloat(F.scene.style.top) + .08 * OH) / bh, vl = (-parseFloat(F.scene.style.left) + .08 * OW) / bw, vwf = OW / bw;
+          x.strokeStyle = 'rgba(52,50,47,.8)'; x.lineCap = 'round'; x.lineJoin = 'round'; let lead = F.birds[0]; lead.x += dt * lead.v; if (lead.x > 1.15){ lead.x = -.12; lead.y = .12 + Math.random() * .12; }
+          F.birds.forEach((bd, k) => { if (k){ bd.x = lead.x - k * .045 - Math.sin(T2 * .3 + k) * .006; bd.y += (lead.y + (k % 2 ? .04 : -.03) * k * .6 - bd.y) * .02; }
+            const ft = (T2 + bd.ph) % bd.cyc, flapping = ft < .9, fl = flapping ? Math.sin(ft / .9 * Math.PI * 2.5) : .25 + Math.sin(T2 * 1.3 + bd.ph) * .05;
+            const px = (vl + bd.x * vwf * .62) * CW, py = (vt + (bd.y + Math.sin(T2 * .5 + bd.ph) * .006) * (OH / bh)) * CH, w = 7 * bd.s * CW / 1000, lift = w * .5 * fl;
+            // 날개: 몸에서 굵게 시작해 손목에서 꺾이고 끝으로 가늘어지는 채운 모양, 작은 몸통과 꼬리
+            x.fillStyle = 'rgba(46,44,41,' + (.62 + bd.s * .18).toFixed(2) + ')';
+            [-1, 1].forEach(sd => { const wx = px + sd * w * .42, wy = py - lift * .62 - w * .1, tx = px + sd * w, ty = py - lift + w * .04;
+              x.beginPath(); x.moveTo(px + sd * w * .04, py - w * .07); x.quadraticCurveTo(wx - sd * w * .02, wy - w * .07, tx, ty);
+              x.quadraticCurveTo(wx + sd * w * .02, wy + w * .09, px + sd * w * .05, py + w * .05); x.closePath(); x.fill(); });
+            x.beginPath(); x.ellipse(px, py, w * .13, w * .055, 0, 0, 7); x.fill();
+            x.beginPath(); x.moveTo(px - w * .1, py); x.lineTo(px - w * .24, py - w * .03); x.lineTo(px - w * .22, py + w * .05); x.closePath(); x.fill(); });
+        } else if (FF && i === FF.i){ P.fr.style.visibility = ''; FF.r0 = null; FF.ov.style.opacity = '0'; FF.blocks.forEach(bl => bl.style.opacity = 0); }
+        panelFx(P, d); grainTick(performance.now()); P.caps.forEach(c => { c.cap.style.transform = window.__mmCapEdit ? 'none' : 'translate3d(' + (P.mode ? 0 : d * c.dx * 18).toFixed(1) + 'px,' + (-d * vh * (c.k - 1.1) * (P.mode ? .12 : .5)).toFixed(1) + 'px,0)'; }); }); });
     requestAnimationFrame(frame); }
   if (!reduced) requestAnimationFrame(frame);
   else comics.forEach(C => { C.sec.style.height = 'auto'; C.panels.forEach(P => { P.wrap.style.position = 'relative'; P.wrap.style.left = P.wrap.style.top = 'auto'; P.wrap.style.margin = '12vh auto'; }); C.sec.firstElementChild.style.position = 'relative'; C.sec.firstElementChild.style.height = 'auto'; });
@@ -961,10 +1098,18 @@ window.__mmCapPos = CAPPOS;
 (function credits(){
   const sec = document.getElementById('credits'), roll = document.getElementById('roll'); if (!sec || !roll) return;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const fit = () => { sec.style.height = Math.round(roll.offsetHeight + innerHeight * 3.6) + 'px'; }; fit(); addEventListener('resize', fit); (document.fonts ? document.fonts.ready : Promise.resolve()).then(fit);
+  // 끝: 조사명 → 국가유산청 → 한국민속학회 → 제목. 화면 가운데에 고정된 채 하나씩 나타났다 사라진다
+  { const lastP = [...roll.querySelectorAll('p[data-cr-line]')].pop(); if (lastP && /국가유산청/.test(lastP.textContent)) lastP.remove(); }
+  const pin = document.getElementById('cr-end').parentElement, mkStep = (html) => { const el = document.createElement('div'); el.style.cssText = "position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;justify-content:center;align-items:center;padding:0 6vw;opacity:0;pointer-events:none;text-align:center"; el.innerHTML = html; pin.appendChild(el); return el; };
+  const LOGOS = {'국가유산청': 'assets/logo-khs.svg', '(사)한국민속학회': 'assets/logo-kfs.svg'}, LOGO_SUB = {'(사)한국민속학회': '(사)한국민속학회'}; // 로고 파일이 들어오면 경로를 넣는다 — 예: {'국가유산청': 'assets/logo-khs.jpg'}
+  const logo = (src, name) => LOGOS[name] ? '<div style="display:flex;flex-direction:column;align-items:center;gap:18px"><img src="' + LOGOS[name] + '" alt="' + name + '" style="display:block;width:min(52vw,340px);height:auto;max-height:min(14vh,110px);object-fit:contain;' + (/khs/.test(LOGOS[name]) ? '' : 'filter:brightness(0) invert(1)') + '">' + (LOGO_SUB[name] ? '<span style="font-family:\'Nanum Myeongjo\',serif;font-weight:700;font-size:clamp(16px,1.8vw,22px);letter-spacing:.06em;color:#f2efe9">' + LOGO_SUB[name] + '</span>' : '') + '</div>' : '<span style="font-family:\'Nanum Myeongjo\',serif;font-weight:700;font-size:clamp(22px,3vw,34px);color:#f2efe9">' + name + '</span>';
+  const steps = [mkStep("<p style=\"margin:0;font-family:'Nanum Myeongjo','Apple Myungjo',serif;font-weight:700;font-size:clamp(20px,2.6vw,32px);line-height:1.6;color:#f2efe9;word-break:keep-all\">2026년 K-무형유산 지식자원 기초조사</p>"), mkStep(logo('assets/logo-khs.jpg', '국가유산청')), mkStep(logo('assets/logo-kfs.jpg', '(사)한국민속학회'))];
+  const fit = () => { sec.style.height = Math.round(roll.offsetHeight + innerHeight * 7.2) + 'px'; }; fit(); addEventListener('resize', fit); (document.fonts ? document.fonts.ready : Promise.resolve()).then(fit);
+  const sm3 = t => t * t * (3 - 2 * t);
   const tick = () => { const vh = innerHeight, r = sec.getBoundingClientRect();
     if (r.bottom > 0 && r.top < vh){ const sp = Math.max(1, r.height - vh), q = clamp(-r.top / sp, 0, 1), H = roll.offsetHeight, rollSpan = (H + vh) / sp, k = clamp((q - .04) / rollSpan, 0, 1), endT = .04 + rollSpan;
-      { const ce = document.getElementById('cr-end'); if (ce){ const e = clamp((q - endT + .02) / .16, 0, 1), ee = e * e * (3 - 2 * e); ce.style.opacity = ee.toFixed(3); ce.style.transform = 'translateY(calc(-50% + ' + ((1 - ee) * 18).toFixed(1) + 'px))'; ce.style.filter = 'blur(' + ((1 - ee) * 6).toFixed(1) + 'px)'; } }
+      const SW = (1 - endT) / (steps.length + 1.4); steps.forEach((el, i) => { const a0 = endT + i * SW, u = clamp((q - a0) / SW, 0, 1), fi = sm3(clamp(u / .3, 0, 1)), fo = sm3(clamp((u - .72) / .28, 0, 1)), o = fi * (1 - fo); el.style.opacity = o.toFixed(3); el.style.filter = 'blur(' + ((1 - fi) * 6 + fo * 6).toFixed(1) + 'px)'; });
+      { const ce = document.getElementById('cr-end'); if (ce){ const e = clamp((q - (endT + steps.length * SW)) / (SW * .6), 0, 1), ee = e * e * (3 - 2 * e); ce.style.opacity = ee.toFixed(3); ce.style.transform = 'translateY(calc(-50% + ' + ((1 - ee) * 18).toFixed(1) + 'px))'; ce.style.filter = 'blur(' + ((1 - ee) * 6).toFixed(1) + 'px)'; } }
       roll.style.transform = 'translate3d(0,' + (-(k * (H + vh))).toFixed(1) + 'px,0)';
       roll.querySelectorAll('[data-cr-line]').forEach(el => { const t = el.getBoundingClientRect().top, inn = clamp((vh * .9 - t) / (vh * .16), 0, 1), out = clamp((t - vh * .06) / (vh * .14), 0, 1), e = inn * inn * (3 - 2 * inn); el.style.opacity = (e * out).toFixed(3); el.style.transform = 'translate3d(0,' + ((1 - e) * 22).toFixed(1) + 'px,0)'; }); }
     requestAnimationFrame(tick); };
@@ -1055,4 +1200,39 @@ window.__mmCapPos = CAPPOS;
     document.querySelectorAll('#roll [data-cr-line]').forEach(r => { if (r.style.display === 'grid') r.style.gap = P ? '14px' : '32px'; });
   };
   apply(); addEventListener('resize', apply); addEventListener('orientationchange', () => setTimeout(apply, 150)); setTimeout(apply, 1500);
+})();
+
+// 소리: 배경음악(낮은 지속음 + 가끔 울리는 현 소리)과 효과음 — 파일 없이 브라우저에서 합성한다. 설정에서 끌 수 있다
+(function audio(){ if (window.MMSfx) return; let ctx = null, master, bgmG, sfxG, verb, on = localStorage.getItem('mm-sound') !== 'off', bgm = null;
+  const init = () => { if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; } try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ return; }
+    master = ctx.createGain(); master.gain.value = on ? 1 : 0; master.connect(ctx.destination); bgmG = ctx.createGain(); bgmG.gain.value = 0; sfxG = ctx.createGain(); sfxG.gain.value = .9; bgmG.connect(master); sfxG.connect(master);
+    const dl = ctx.createDelay(1.5); dl.delayTime.value = .38; const fb = ctx.createGain(); fb.gain.value = .42; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; dl.connect(lp); lp.connect(fb); fb.connect(dl); verb = ctx.createGain(); verb.gain.value = .5; verb.connect(dl); dl.connect(master); };
+  ['pointerdown', 'keydown', 'touchend'].forEach(ev => addEventListener(ev, init, {capture: true, passive: true}));
+  const noise = sec => { const b = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * sec), ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const n = ctx.createBufferSource(); n.buffer = b; return n; };
+  const env = (g, t, a, peak, dec) => { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + a + dec); };
+  const S = {
+    thump(pan){ const t = ctx.currentTime, p = ctx.createStereoPanner(); p.pan.value = pan || 0; p.connect(sfxG);
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(92, t); o.frequency.exponentialRampToValueAtTime(38, t + .32); env(g, t, .004, .9, .5); o.connect(g); g.connect(p); o.start(t); o.stop(t + .6);
+      const n = noise(.2), bp = ctx.createBiquadFilter(), g2 = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = 220; bp.Q.value = 1.4; env(g2, t, .002, .5, .14); n.connect(bp); bp.connect(g2); g2.connect(p); n.start(t); },
+    steps(){ [0, .5].forEach(dt => { const t = ctx.currentTime + dt, n = noise(.15), bp = ctx.createBiquadFilter(), g = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = 420; bp.Q.value = .9; env(g, t, .003, .45, .1); n.connect(bp); bp.connect(g); g.connect(sfxG); n.start(t);
+      const o = ctx.createOscillator(), g2 = ctx.createGain(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(60, t + .1); env(g2, t, .003, .35, .12); o.connect(g2); g2.connect(sfxG); o.start(t); o.stop(t + .2); }); },
+    wind(len){ len = len || 1; const t = ctx.currentTime, D = 3.4 * len, n = noise(D + .2), bp = ctx.createBiquadFilter(), g = ctx.createGain(); bp.type = 'bandpass'; bp.Q.value = .7; bp.frequency.setValueAtTime(380, t); bp.frequency.linearRampToValueAtTime(900, t + D * .45); bp.frequency.linearRampToValueAtTime(320, t + D);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.32, t + D * .4); g.gain.linearRampToValueAtTime(0, t + D); n.connect(bp); bp.connect(g); g.connect(sfxG); g.connect(verb); n.start(t); },
+    birds(){ for (let k = 0; k < 5; k++){ const t = ctx.currentTime + .15 + k * (.18 + Math.random() * .25), o = ctx.createOscillator(), g = ctx.createGain(), f = 2600 + Math.random() * 900; o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.45, t + .07); env(g, t, .005, .07, .09); o.connect(g); g.connect(sfxG); g.connect(verb); o.start(t); o.stop(t + .2); } }
+  };
+  // 배경음악: A단조 오음계의 낮은 지속음과, 6~11초마다 하나씩 울리는 현
+  const startBgm = () => { if (bgm || !ctx) return; const t = ctx.currentTime, lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520; lp.connect(bgmG); const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .05; lg.gain.value = 220; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    const dr = [[110, 'triangle', .07], [110.6, 'sawtooth', .018], [164.8, 'triangle', .045], [220.4, 'sine', .03]].map(([f, ty, gv]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = ty; o.frequency.value = f; g.gain.value = gv; o.connect(g); g.connect(lp); o.start(t); return o; });
+    const notes = [220, 261.6, 293.7, 329.6, 392, 440, 523.3, 587.3];
+    const pluck = () => { if (!bgm) return; const tt = ctx.currentTime + .05, f = notes[Math.floor(Math.random() * notes.length)], o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), bp = ctx.createBiquadFilter(); bp.type = 'lowpass'; bp.frequency.setValueAtTime(2400, tt); bp.frequency.exponentialRampToValueAtTime(500, tt + 1.8);
+      o.type = 'triangle'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2.003; g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(.09, tt + .008); g.gain.exponentialRampToValueAtTime(.0001, tt + 3.2); o.frequency.setValueAtTime(f * 1.012, tt); o.frequency.exponentialRampToValueAtTime(f, tt + .25);
+      o.connect(bp); o2.connect(bp); bp.connect(g); g.connect(bgmG); g.connect(verb); o.start(tt); o2.start(tt); o.stop(tt + 3.4); o2.stop(tt + 3.4); bgm.tm = setTimeout(pluck, 6000 + Math.random() * 5000); };
+    bgm = {dr, lfo, tm: setTimeout(pluck, 2500)}; };
+  setInterval(() => { if (!ctx) return; const v = document.getElementById('intro-video'), playing = v && !v.paused && !v.ended, want = on && window.__mmStarted && !playing && !document.hidden && window.scrollY > innerHeight * .5;
+    if (want) startBgm(); bgmG.gain.setTargetAtTime(want ? .55 : 0, ctx.currentTime, want ? 2.5 : .6); }, 400);
+  window.MMSfx = { play(k, a){ if (!ctx || !on || ctx.state !== 'running' || !S[k]) return; S[k](a); } };
+  // 설정 패널에 '소리' 켜기/끄기
+  const addBtn = () => { const panel = document.getElementById('panel'), ref = document.getElementById('b-caps'); if (!panel || !ref || document.getElementById('b-sound')) return; const b = ref.cloneNode(true); b.id = 'b-sound'; b.firstChild.textContent = '소리'; const stl = b.querySelector('.st'); if (stl) stl.textContent = on ? '켬' : '끔';
+    b.addEventListener('click', () => { on = !on; localStorage.setItem('mm-sound', on ? 'on' : 'off'); if (stl) stl.textContent = on ? '켬' : '끔'; init(); if (master) master.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, .2); }); panel.insertBefore(b, ref); };
+  addBtn(); setTimeout(addBtn, 1200);
 })();

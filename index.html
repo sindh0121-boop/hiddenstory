@@ -175,7 +175,8 @@ a:hover{color:#f2efe9}
 class Component extends DCLogic {
   componentDidMount(){
     if (window.__mmEngine) return;
-    const sc = document.createElement('script'); sc.src = './mm-engine.js'; document.body.appendChild(sc);
+    const load = n => { const sc = document.createElement('script'); sc.src = './mm-engine.js' + (n ? '?r=' + n + '-' + Date.now() : ''); sc.onerror = () => { sc.remove(); if (n < 4) setTimeout(() => load(n + 1), 400 * (n + 1)); }; document.body.appendChild(sc); };
+    load(0);
     this.fallback = setTimeout(() => ['title-frame','title-inner'].forEach(id => { const el = document.getElementById(id); if (el && el.style.opacity === '0') el.style.opacity = 1; }) || ((t) => { if (t) t.style.visibility = 'visible'; })(document.getElementById('cover-title')), 4000);
   }
   componentWillUnmount(){ clearTimeout(this.fallback); }
